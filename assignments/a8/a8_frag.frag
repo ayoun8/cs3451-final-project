@@ -115,7 +115,9 @@ vec3 renderParticle(vec2 fragPos, vec2 particlePos, float brightness, vec3 color
     vec3 fragColor = vec3(0.0);
 
 	/* your implementation starts */
-      
+    float dist = length(fragPos - particlePos);
+    float decay = 1.0/dist;
+    fragColor = color * brightness * decay;
 	
     /* your implementation ends */
 
@@ -145,7 +147,9 @@ vec3 renderStars(vec2 fragPos)
         float brightness = .0004;
 
         /* your implementation starts */
-
+        float bright = brightness * (0.5 + 0.5 * sin(t + i));
+        vec3 color = vec3(0.9, 0.9, 1.0);
+        fragColor += renderParticle(fragPos, pos, bright, color);
         
         /* your implementation ends */
     }
@@ -164,7 +168,7 @@ vec2 moveParticle(vec2 initPos, vec2 initVel, float t)
     vec2 currentPos = initPos;
 
     /* your implementation starts */
-
+    currentPos = initPos + initVel * t + 0.5 * g * t * t;
 
     /* your implementation ends */
 
@@ -186,7 +190,8 @@ vec3 simSingleParticle(vec2 fragPos, vec2 initPos, vec2 initVel, float t, float 
     vec3 fragColor = vec3(0.0);
 
     /* your implementation starts */
-
+    vec2 currPos = moveParticle(initPos, initVel, t);
+    fragColor+= renderParticle(fragPos, currPos, brightness, color);
     
     /* your implementation ends */
 
@@ -227,7 +232,11 @@ vec3 simSingleFirework(vec2 fragPos, vec2 launchPos, vec2 launchVel, float t, ve
             vec2 emitVel = hash2d_polar(i) * .7; // random direction with max magnitude 0.7
 
             /* your implementation starts */
-
+            float bright = 0.003;
+            float flicker = 0.5 + 0.5 * sin(emitT * 10.0 + i);
+            float fade = max(0.0, 1.0- emitT/(DURATION - emitTime));
+            float brightness= bright * flicker * fade;
+            fragColor += simSingleParticle(fragPos, emitPos, emitVel, emitT, brightness, color);
 
             /* your implementation ends */
         }
@@ -240,15 +249,60 @@ vec3 renderFireworks(vec2 fragPos)
 {
     vec3 fragColor = vec3(0.0);
 
-    for(float i = 0.; i < NUM_FIREWORKS; i++){
-        float lauchTime = i;
-        float relTime = Time - lauchTime;
-        float t = mod(relTime, DURATION);
-        float idx = floor(relTime / DURATION);
+    float t = mod(Time, DURATION);
 
-        vec2 launchPos = vec2((hash1d(idx) - .5) * iResolution.x / iResolution.y, -0.5);
-        vec2 launchVel = vec2(-launchPos.x * 0.66, hash1d(lauchTime + 1.) * 0.3 + .9);
-        vec3 color = sin(40. * hash3d(lauchTime) * idx) * 0.25 + 0.75;
+    float emitT = 1.5;
+
+    const int NUM_POINTS = 12;
+
+    const vec2 targets[NUM_POINTS] = vec2[NUM_POINTS](
+        vec2(-0.45, -0.25),
+        vec2(-0.30, -0.23),
+        vec2(-0.15, -0.21),
+        vec2(0.00, -0.20),
+        vec2(0.15, -0.21),
+        vec2(0.30, -0.23),
+        vec2(0.45, -0.25),
+
+        vec2(-0.20, -0.15),
+        vec2(0.00,0.05),
+        vec2(0.15, 0.18),
+        vec2(0.26, 0.28),
+
+        vec2(0.38, 0.30)
+    );
+
+    const vec3 colors[NUM_POINTS] = vec3[NUM_POINTS](
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+        vec3(1.0,1.0,1.0),
+
+        vec3(0.9,0.1,0.1),
+        vec3(0.9,0.1,0.1),
+        vec3(0.9,0.1,0.1),
+        vec3(0.9,0.1,0.1),
+
+        vec3(1.0,1.0,1.0)
+    );
+
+    for(int i = 0; i < NUM_POINTS; i++){
+        //float lauchTime = i;
+        //float relTime = Time - lauchTime;
+        //float t = mod(relTime, DURATION);
+        //float idx = floor(relTime / DURATION);
+
+        //vec2 launchPos = vec2((hash1d(idx) - .5) * iResolution.x / iResolution.y, -0.5);
+        //vec2 launchVel = vec2(-launchPos.x * 0.66, hash1d(lauchTime + 1.) * 0.3 + .9);
+        //vec3 color = sin(40. * hash3d(lauchTime) * idx) * 0.25 + 0.75;
+
+        vec2 target = targets[i];
+        vec2 launchPos = vec2(target.x, -0.5);
+        vec2 launchVel = (target - launchPos - 0.5 * g * emitT * emitT)/emitT;
+        vec3 color= colors[i];
 
         fragColor += simSingleFirework(fragPos, launchPos, launchVel, t, color);
     }
@@ -265,34 +319,37 @@ void mainImage(out vec4 outputColor, in vec2 fragCoord)
 
     //// Step 1: render single particle
     {
-        vec2 pos = vec2(0., 0.);
-        float brightness = 0.005;
-        vec3 color = vec3(0.15, 0.71, 0.92);
-        fragColor = renderParticle(fragPos, pos, brightness, color);
+        //vec2 pos = vec2(0., 0.);
+        //float brightness = 0.005;
+        //vec3 color = vec3(0.15, 0.71, 0.92);
+        //fragColor = renderParticle(fragPos, pos, brightness, color);
     }
 
     //// Step 2: render starry sky
     //// Uncomment the following block to test your Step 2 implementation
     //{
-    //    fragColor = renderStars(fragPos);
+        vec3 sky = renderStars(fragPos);
     //}
 
     //// Step 3: simulate single particle
     //// Uncomment the following block to test your Step 3 implementation
-    //{
-    //    vec2 initPos = vec2(-0.5, -0.5);
-    //    vec2 initVel = vec2(0.4, 1.);
-    //    float t = mod(Time, DURATION);
-    //    float brightnes = .005;
-    //    vec3 color = vec3(0.15, 0.71, 0.92);
-    //    fragColor = renderStars(fragPos) + simSingleParticle(fragPos, initPos, initVel, t, brightnes, color);
-    //}
+    {
+        //vec2 initPos = vec2(-0.5, -0.5);
+        //vec2 initVel = vec2(0.4, 1.);
+        //float t = mod(Time, DURATION);
+        //float brightnes = .005;
+        //vec3 color = vec3(0.15, 0.71, 0.92);
+        //fragColor = renderStars(fragPos) + simSingleParticle(fragPos, initPos, initVel, t, brightnes, color);
+    }
     
     //// Step 4: simulate fireworks
     //// Uncomment the following block to test your Step 4 implementation
-    //{
-    //    fragColor = renderStars(fragPos) + renderFireworks(fragPos);
-    //}
+    {
+        //fragColor = renderStars(fragPos) + renderFireworks(fragPos);
+        vec3 hat = renderFireworks(fragPos);
+        fragColor = hat + sky;
+        outputColor = vec4(fragColor, 1.0);
+    }
     
     outputColor = vec4(fragColor, 1.0);
 }
